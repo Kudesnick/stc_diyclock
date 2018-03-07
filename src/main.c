@@ -18,20 +18,34 @@
 // hardware configuration
 #include "hwconfig.h"
 
+#ifndef WITHOUT_TEMP
+    #define ADC_WORKING
+#else
+  #ifndef WITHOUT_LIGHT
+    #define ADC_WORKING
+  #endif
+#endif
+
 // display mode states
 enum keyboard_mode {
     K_NORMAL,
     K_SET_HOUR,
     K_SET_MINUTE,
-    K_SET_HOUR_12_24,
     K_SEC_DISP,
+#ifndef HOUR_24_ONLY
+    K_SET_HOUR_12_24,
+#endif
+#ifndef WITHOUT_TEMP
     K_TEMP_DISP,
+#endif
 #ifndef WITHOUT_DATE
     K_DATE_DISP,
     K_SET_MONTH,
     K_SET_DAY,
 #endif
+#ifndef WITHOUT_WEEKDAY
     K_WEEKDAY_DISP,
+#endif
 #ifndef WITHOUT_ALARM
     K_ALARM,
     K_ALARM_SET_HOUR,
@@ -47,13 +61,19 @@ enum keyboard_mode {
 // display mode states
 enum display_mode {
     M_NORMAL,
-    M_SET_HOUR_12_24,
     M_SEC_DISP,
+#ifndef HOUR_24_ONLY
+    M_SET_HOUR_12_24,
+#endif
+#ifndef WITHOUT_TEMP
     M_TEMP_DISP,
+#endif
 #ifndef WITHOUT_DATE
     M_DATE_DISP,
 #endif
+#ifndef WITHOUT_WEEKDAY
     M_WEEKDAY_DISP,
+#endif
 #ifndef WITHOUT_ALARM
     M_ALARM,
 #endif
@@ -86,11 +106,21 @@ void _delay_ms(uint8_t ms)
 }
 */
 
+#ifdef EVERY_HOUR_BUZZER
+volatile __bit sett_buzzer_on;
+volatile __bit buzzer_must_on;
+uint8_t bufer_hh;
+#endif
 uint8_t  count;     // main loop counter
+#ifndef WITHOUT_TEMP
 uint16_t temp;      // temperature sensor value
+#endif
+#ifndef WITHOUT_LIGHT
 uint8_t  lightval;  // light sensor value
+#endif
 
 volatile uint8_t displaycounter;
+volatile uint8_t buzz_counter;
 volatile int8_t count_100;
 volatile int16_t count_1000;
 volatile int16_t count_5000;
@@ -171,6 +201,20 @@ void timer0_isr() __interrupt 1 __using 1
     }
     displaycounter++;
 
+#ifdef EVERY_HOUR_BUZZER
+    if (buzzer_must_on)
+    {
+	if (buzz_counter++ == 16) {
+            BUZZER_OFF;
+            buzzer_must_on = 0;
+            buzz_counter = 0;
+        } else if (buzz_counter % 8 == 0) {
+            BUZZER_ON;
+        } else {
+            BUZZER_OFF;
+        }
+    }
+#endif
     // 100/sec: 10 ms
     if (count_100 == 100) {
         count_100 = 0;
@@ -309,6 +353,7 @@ void Timer0Init(void)		//100us @ 11.0592MHz
 // The floating point one is even worse in term of code size generated (>1024bytes...)
 // Approximation for slope is 1/10 (64/637) - valid for a normal 20 degrees range
 // & let's find some other trick (80 bytes - See also docs\Temp.ods file)
+#ifndef WITHOUT_TEMP
 int8_t gettemp(uint16_t raw) {
     uint16_t val=raw;
     uint8_t temp;
@@ -327,6 +372,7 @@ int8_t gettemp(uint16_t raw) {
 
     return temp + (cfg_table[CFG_TEMP_BYTE] & CFG_TEMP_MASK) - 4;
 }
+#endif
 
 void dot3display(__bit pm)
 {
@@ -345,10 +391,12 @@ void dot3display(__bit pm)
 /*********************************************/
 int main()
 {
+#ifdef ADC_WORKING
     // SETUP
     // set photoresistor & ntc pins to open-drain output
     P1M1 |= (1<<ADC_LIGHT) | (1<<ADC_TEMP);
     P1M0 |= (1<<ADC_LIGHT) | (1<<ADC_TEMP);
+#endif
 
     // init rtc
     ds_init();
@@ -359,6 +407,11 @@ int main()
     //ds_reset_clock();
 
     Timer0Init(); // display refresh & switch read
+
+#ifdef EVERY_HOUR_BUZZER
+    sett_buzzer_on = 1;
+    buzzer_must_on = 1;
+#endif
 
     // LOOP
     while (1)
@@ -371,22 +424,33 @@ int main()
         ev = event;
         event = EV_NONE;
 
+#ifdef ADC_WORKING
         // sample adc, run frequently
         if (count % 4 == 0) {
+#ifndef WITHOUT_TEMP
             temp = gettemp(getADCResult(ADC_TEMP));
+#endif
+#ifndef WITHOUT_LIGHT
             // auto-dimming, by dividing adc range into 8 steps
             lightval = getADCResult8(ADC_LIGHT) >> 3;
             // set floor of dimming range
             if (lightval < 4) {
                 lightval = 4;
             }
+#endif
         }
-
+#endif
         // Read RTC
         ds_readburst();
         // parse RTC
         {
             rtc_hh_bcd = rtc_table[DS_ADDR_HOUR];
+#ifdef EVERY_HOUR_BUZZER
+            if (bufer_hh != rtc_hh_bcd && sett_buzzer_on) {
+                buzzer_must_on = 1;
+                bufer_hh = rtc_hh_bcd;
+            }
+#endif
             if (H12_12) {
                 rtc_hh_bcd &= DS_MASK_HOUR12;
             } else {
@@ -456,10 +520,15 @@ int main()
                     ds_minutes_incr();
                 }
                 else if (ev == EV_S2_SHORT) {
+#ifndef HOUR_24_ONLY
                     kmode = K_SET_HOUR_12_24;
+#else
+                    kmode = K_NORMAL;
+#endif
                 }
                 break;
 
+#ifndef HOUR_24_ONLY
             case K_SET_HOUR_12_24:
                 dmode = M_SET_HOUR_12_24;
                 if (ev == EV_S1_SHORT) {
@@ -470,7 +539,9 @@ int main()
                     kmode = K_NORMAL;
                 }
                 break;
+#endif
 
+#ifndef WITHOUT_TEMP
             case K_TEMP_DISP:
                 dmode = M_TEMP_DISP;
                 if (ev == EV_S1_SHORT) {
@@ -482,11 +553,12 @@ int main()
                 else if (ev == EV_S2_SHORT) {
 #ifndef WITHOUT_DATE
                     kmode = K_DATE_DISP;
-#else
+#elif undefined(WITHOUT_WEEKDAY)
                     kmode = K_WEEKDAY_DISP;
 #endif
                 }
                 break;
+#endif
 
 #ifndef WITHOUT_DATE
             case K_DATE_DISP:
@@ -524,7 +596,7 @@ int main()
                 }
                 break;
 #endif
-
+#ifndef WITHOUT_WEEKDAY
             case K_WEEKDAY_DISP:
                 dmode = M_WEEKDAY_DISP;
                 if (ev == EV_S1_SHORT || (S1_LONG && blinker_fast)) {
@@ -534,7 +606,7 @@ int main()
                     kmode = K_NORMAL;
                 }
                 break;
-
+#endif
 #ifdef DEBUG
             // To enter DEBUG mode, go to the SECONDS display, then hold S1 and S2 simultaneously.
             // S1 cycles through the DEBUG modes.
@@ -632,9 +704,17 @@ int main()
                 else if (ev == EV_S2_LONG) {
                     kmode = K_SET_HOUR;
                 }
+#ifdef EVERY_HOUR_BUZZER
+                else if (ev == EV_S1S2_LONG) {
+                    sett_buzzer_on = !sett_buzzer_on;
+                    buzzer_must_on = 1;
+                }
+#endif
+#ifndef WITHOUT_TEMP
                 else if (ev == EV_S2_SHORT) {
                     kmode = K_TEMP_DISP;
                 }
+#endif
 #ifdef stc15w408as
                 else if (ev == EV_S3_LONG) {
                     LED = !LED;
@@ -686,6 +766,7 @@ int main()
                 dot3display(pm);
                 break;
             }
+#ifndef HOUR_24_ONLY
             case M_SET_HOUR_12_24:
                 if (!H12_12) {
                     filldisplay(1, 2, 0);
@@ -696,6 +777,7 @@ int main()
                 }
                 filldisplay(3, LED_h, 0);
                 break;
+#endif
 
             case M_SEC_DISP:
                 dotdisplay(0, 0);
@@ -732,14 +814,15 @@ int main()
                 dot3display(0);
                 break;
 #endif
-
+#ifndef WITHOUT_WEEKDAY
             case M_WEEKDAY_DISP:
                 filldisplay( 1, LED_DASH, 0);
                 filldisplay( 2, rtc_table[DS_ADDR_WEEKDAY], 0); //weekday ( &MASK_UNITS useless, all MSBs are '0')
                 filldisplay( 3, LED_DASH, 0);
                 dot3display(0);
                 break;
-
+#endif
+#ifndef WITHOUT_TEMP
             case M_TEMP_DISP:
                 filldisplay( 0, ds_int2bcd_tens(temp), 0);
                 filldisplay( 1, ds_int2bcd_ones(temp), 0);
@@ -747,7 +830,7 @@ int main()
                 // if (temp<0) filldisplay( 3, LED_DASH, 0);  -- temp defined as uint16, cannot be <0
                 dot3display(0);
                 break;
-
+#endif
 #ifdef DEBUG
             case M_DEBUG:
             {
