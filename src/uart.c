@@ -13,10 +13,9 @@
 #define UART_SW1_2 (1 << 6) // P3.6 - Rx, P3.7 - Tx
 #define UART_SW1_3 (2 << 6) // P1.6 - Rx, P1.7 - Tx
 
-uint8_t uart_buf[BUF_SIZE];
+uint8_t uart_buf[BUF_SIZE+1];
 
 volatile uint8_t data_ptr;
-volatile uint8_t data_size;
 uart_status_t uart_status;
 
 void uart_init(void)
@@ -45,6 +44,8 @@ uart_status_t uart_get_status(void)
 
 bool uart_send(const uint8_t * str)
 {
+    uint8_t size;
+
     ES = 0;
 
     if (   TI
@@ -60,12 +61,13 @@ bool uart_send(const uint8_t * str)
     REN = 0;
 
     uart_status = STATUS_TX;
-    data_size = strlen(str);
-    if (data_size > sizeof(uart_buf))
+    size = strlen(str);
+    if (size > BUF_SIZE)
     {
-        data_size = sizeof(uart_buf);
+        size = BUF_SIZE;
     }
-    memcpy(uart_buf, str, data_size);
+    memcpy(uart_buf, str, size);
+    uart_buf[size] = '\0';
     data_ptr = 0;
 
     TI = 0;
@@ -75,7 +77,23 @@ bool uart_send(const uint8_t * str)
     return true;
 }
 
-void uart1_isr() __interrupt 4 __using 2
+uint8_t * uart_get(void)
+{
+    if (uart_status != STATUS_RX_COMPLETE)
+    {
+        return NULL;
+    }
+    else
+    {
+        uart_status = STATUS_IDLE;
+        RI = 0;
+        REN = 1;
+
+        return  uart_buf;
+    }
+}
+
+void uart1_isr(void) __interrupt 4 __using 2
 {
     ES = 0;
 
@@ -89,9 +107,8 @@ void uart1_isr() __interrupt 4 __using 2
         {
             case STATUS_IDLE:
             {
-                if (ch != 0x0A && ch != 0x0D)
+                if (ch != '\r' && ch != '\n' && ch != '\0')
                 {
-                    data_size = 0;
                     data_ptr = 1;
                     uart_buf[0] = ch;
                     uart_status == STATUS_RX;
@@ -100,19 +117,19 @@ void uart1_isr() __interrupt 4 __using 2
             }
             case STATUS_RX:
             {
-                if (ch != 0x0A && ch != 0x0D && data_ptr < sizeof(uart_buf))
+                if (ch != '\r' && ch != '\n' && ch != '\0' && data_ptr < BUF_SIZE)
                 {
                     uart_buf[data_ptr++] = ch;
                 }
                 else
                 {
-                    data_size = data_ptr;
-                    uart_status = STATUS_IDLE;
+                    uart_buf[data_ptr] = '\0';
+                    uart_status = STATUS_RX_COMPLETE;
 
                     REN = 0;
                 }
             }
-            case STATUS_TX:
+            default:
             {
                 REN = 0;
                 break;
@@ -125,13 +142,14 @@ void uart1_isr() __interrupt 4 __using 2
 
         if (uart_status == STATUS_TX)
         {
-            if (++data_ptr < data_size)
+            data_ptr++;
+
+            if (uart_buf[data_ptr] != '\0' && data_ptr < BUF_SIZE)
             {
                 SBUF = uart_buf[data_ptr];
             }
             else
             {
-                data_size = 0;
                 uart_status = STATUS_IDLE;
 
                 REN = 1;
