@@ -9,14 +9,11 @@
 #include "adc.h"
 #include "ds1302.h"
 #include "led.h"
-    
-#define FOSC    11059200
+#include "uart.h"
+#include "hwconfig.h"
 
 // clear wdt
 #define WDT_CLEAR()    (WDT_CONTR |= 1 << 4)
-
-// hardware configuration
-#include "hwconfig.h"
 
 #ifndef WITHOUT_TEMP
     #define ADC_WORKING
@@ -86,7 +83,7 @@ enum display_mode {
 #define NUM_DEBUG 3
 
 /* ------------------------------------------------------------------------- */
-/*
+
 void _delay_ms(uint8_t ms)
 {
     // delay function, tuned for 11.092 MHz clock
@@ -104,7 +101,6 @@ void _delay_ms(uint8_t ms)
         djnz dpl, delay$
     __endasm;
 }
-*/
 
 #ifdef EVERY_HOUR_BUZZER
 volatile __bit sett_buzzer_on;
@@ -118,6 +114,8 @@ uint16_t temp;      // temperature sensor value
 #ifndef WITHOUT_LIGHT
 uint8_t  lightval;  // light sensor value
 #endif
+
+volatile __bit send_flag;
 
 volatile uint8_t displaycounter;
 volatile uint8_t buzz_counter;
@@ -227,6 +225,7 @@ void timer0_isr() __interrupt 1 __using 1
             if (count_5000 == 5000) {
                 count_5000 = 0;
                 blinker_slow = !blinker_slow;
+                send_flag = 1;
 #ifndef WITHOUT_ALARM
                 // 1/ 2sec: 20000 ms
                 if (count_20000 == 20000) {
@@ -364,9 +363,9 @@ int8_t gettemp(uint16_t raw) {
 
     if (CONF_C_F) {val=6835; temp=32;}  // equiv. to temp=xxxx-(9/5)*raw/10 i.e. 9*raw/50
                                         // see next - same for degF
-             else {val=5*757; temp=0;}  // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50  
+             else {val=5*757; temp=0;}  // equiv. to temp=xxxx-raw/10 or which is same 5*raw/50
                                         // at 25degC, raw is 512, thus 24 is 522 and limit between 24 and 25 is 517
-                                        // so between 0deg and 1deg, limit is 517+24*10 = 757 
+                                        // so between 0deg and 1deg, limit is 517+24*10 = 757
                                         // (*5 due to previous adjustment of raw value)
     while (raw<val) {temp++; val-=50;}
 
@@ -391,6 +390,14 @@ void dot3display(__bit pm)
 /*********************************************/
 int main()
 {
+    uint8_t i;
+
+    // 2 seconds delay
+    for (i = 20; i > 0; i--)
+    {
+        _delay_ms(100);
+    }
+
 #ifdef ADC_WORKING
     // SETUP
     // set photoresistor & ntc pins to open-drain output
@@ -402,6 +409,8 @@ int main()
     ds_init();
     // init/read ram config
     ds_ram_config_init();
+
+    uart_init();
 
     // uncomment in order to reset minutes and hours to zero.. Should not need this.
     //ds_reset_clock();
@@ -423,6 +432,12 @@ int main()
 
         ev = event;
         event = EV_NONE;
+
+        if (send_flag && blinker_slow)
+        {
+            send_flag = 0;
+            uart_send("Hello word!\r\n");
+        }
 
 #ifdef ADC_WORKING
         // sample adc, run frequently

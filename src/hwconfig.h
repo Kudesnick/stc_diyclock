@@ -11,6 +11,8 @@
     https://github.com/zerog2k/stc_diyclock/issues/20
 */
 
+#define FOSC 11059200
+
 // alias for relay and buzzer outputs, using relay to drive led for indication of main loop status
 // only for revision with stc15f204ea
 #if defined stc15f204ea || defined stc15w404as
