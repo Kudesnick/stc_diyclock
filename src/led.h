@@ -1,18 +1,26 @@
 // LED functions for 4-digit seven segment led
 
 #include <stdint.h>
+#include "hwconfig.h"
 
 // index into ledtable[]
-#define LED_a   0xa
-#define LED_b   0xb
-#define LED_c   0xc
-#define LED_d   0xd
-#define LED_e   0xe
-#define LED_f   0xf
-#define LED_BLANK  0x10
-#define LED_DASH   0x11
-#define LED_h   0x12
-#define LED_dp  0x13
+#define LED_a       0xa
+#define LED_b       0xb
+#define LED_c       0xc
+#define LED_d       0xd
+#define LED_e       0xe
+#define LED_f       0xf
+#define LED_DASH    0x10
+#define LED_h       0x11
+#define LED_dp      0x12
+#define LED_BLANK   0x13
+
+#define LED_DEMO_0  0x13
+#define LED_DEMO_1  0x14
+#define LED_DEMO_2  0x15
+#define LED_DEMO_3  0x16
+#define LED_DEMO_4  0x17
+#define LED_DEMO_5  0x18
 
 const uint8_t
 #ifndef WITHOUT_LEDTABLE_RELOC
@@ -42,10 +50,16 @@ ledtable[]
     0b10100001, //     0b01011110, // d
     0b10000110, //     0b01111001, // E
     0b10001110, //     0b01110001, // F
-    0b11111111, //     0b00000000, // 0x10 - ' '
     0b10111111, //     0b01000000, // 0x11 - '-'
     0b10001011, //     0b01110100, // 0x12 - 'h'
     0b01111111, //     0b10000000, // 0x13 - '.'
+    0b11111111, //     0b00000000, // 0x10 - ' '
+
+    0b11110111,
+    0b11100011,
+    0b10100011,
+    0b10000001,
+    0b10000000, //     0b01111111, // 8
 };
 
 // Same but with abc <-> def
@@ -76,10 +90,16 @@ ledtable2[]
     0b10001100, //     0b01011110, // d
     0b10110000, //     0b01111001, // E
     0b10110001, //     0b01110001, // F
-    0b11111111, //     0b00000000, // 0x10 - ' '
     0b10111111, //     0b01000000, // 0x11 - '-'
     0b10011001, //     0b01110100, // 0x12 - 'h'
     0b01111111, //     0b10000000, // 0x13 - '.'
+    0b11111111, //     0b00000000, // 0x10 - ' '
+
+    0b11111110,
+    0b11011100,
+    0b10011100,
+    0b10001000,
+    0b10000000, //     0b01111111, // 8
 };
 
 uint8_t tmpbuf[4];
@@ -100,4 +120,3 @@ uint8_t dbuf[4];
                         tmp=ledtable[tmpbuf[1]]; if (dot1) tmp&=0x7F; dbuf[1]=tmp; \
                         tmp=ledtable[tmpbuf[3]]; if (dot3) tmp&=0x7F; dbuf[3]=tmp; \
                         tmp=ledtable2[tmpbuf[2]]; if (dot2) tmp&=0x7F; dbuf[2]=tmp; }
-                        

@@ -28,11 +28,11 @@
 
 // DS_ADDR_SECONDS	c111_1111	0_0-5_9 c=clock_halt
 // DS_ADDR_MINUTES	x111_1111	0_0-5_9
-// DS_ADDR_HOUR		a0b1_1111	0_1-1_2/0_0-2_3 - a=12/not 24, b=not AM/PM if a=1 , else hour(0x20) 
+// DS_ADDR_HOUR		a0b1_1111	0_1-1_2/0_0-2_3 - a=12/not 24, b=not AM/PM if a=1 , else hour(0x20)
 // DS_ADDR_DAY          0011_1111	0_1-3_1
 // DS_ADDR_MONTH        0001_1111	0_1-1_2
 // DS_ADDR_WEEKDAY      0000_0111	0_1-0_7
-// DS_ADDR_YEAR		1111_1111	0_0-9_9 
+// DS_ADDR_YEAR		1111_1111	0_0-9_9
 
 #define DS_MASK_SECONDS       0b01111111
 #define DS_MASK_SECONDS_TENS  0b01110000
@@ -58,8 +58,8 @@
 #define DS_MASK_YEAR_TENS     0b11110000
 #define DS_MASK_YEAR_UNITS    0b00001111
 
-/* 
-  NB: the rtc and config bits below were originally structs/unions, but for some reason 
+/*
+  NB: the rtc and config bits below were originally structs/unions, but for some reason
   the resulting code was bloated coming out of sdcc. This is attempt to recreate this
   struct/union functionality directly, by explicit selection of bit/byte iram addressing
   and using masks above. Because this current implementation is much more complex than
@@ -122,9 +122,6 @@ void ds_init();
 // reset date/time to 01/01 00:00
 //void ds_reset_clock();
 
-// toggle 12/24 hour mode
-void ds_hours_12_24_toggle();
-    
 // increment hours
 void ds_hours_incr();
 
@@ -139,13 +136,13 @@ void ds_day_incr();
 
 void ds_weekday_incr();
 void ds_sec_zero();
-    
+
 // split bcd to int
 uint8_t ds_split2int(uint8_t tens_ones);
 
 // return bcd byte from integer
 uint8_t ds_int2bcd(uint8_t integer);
-    
+
 // convert integer to bcd parts (high = tens, low = ones)
 uint8_t ds_int2bcd_tens(uint8_t integer);
 uint8_t ds_int2bcd_ones(uint8_t integer);

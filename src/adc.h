@@ -29,19 +29,6 @@
 #define ADC_SPEEDHH 0x60            //90 clocks
 
 /*----------------------------
-Initialize ADC sfr
-----------------------------*/
-void InitADC(uint8_t chan);
-
-/*----------------------------
 Get ADC result - 10 bits
 ----------------------------*/
 uint16_t getADCResult(uint8_t chan);
-
-/*----------------------------
-Get ADC result - 8 bits
-----------------------------*/
-uint8_t getADCResult8(uint8_t chan);
-
-
-

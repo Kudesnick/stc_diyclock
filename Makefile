@@ -8,9 +8,9 @@ STCGALPORT ?= /dev/ttyUSB0
 STCGALPROT ?= auto
 FLASHFILE ?= main.hex
 SYSCLK ?= 11059
-CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC -DHOUR_24_ONLY -DWITHOUT_TEMP -DWITHOUT_DATE -DWITHOUT_WEEKDAY -DWITHOUT_ALARM -DEVERY_HOUR_BUZZER
+CFLAGS ?= -DWITH_ALT_LED9 -DWITHOUT_LEDTABLE_RELOC
 
-SRC = src/adc.c src/ds1302.c src/uart.c
+SRC = src/adc.c src/ds1302.c src/uart.c src/keybrd.c
 
 OBJ=$(patsubst src%.c,build%.rel, $(SRC))
 

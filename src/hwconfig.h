@@ -64,13 +64,8 @@
 #endif
 
 // button switch aliases
-// SW3 only for revision with stc15w408as
-#ifdef stc15w408as
- #define SW3     P1_4
- #define NUM_SW 3
-#else
- #define NUM_SW 2
-#endif
+#define NUM_SW 2
+
 #define SW2     P3_0
 #define SW1     P3_1
 

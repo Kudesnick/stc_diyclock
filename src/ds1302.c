@@ -23,9 +23,9 @@ void ds_ram_config_init() {
         ds_ram_config_write();	// OPTIMISE : Will generate a ljmp to ds_ram_config_write
         return;
     }
-    
+
     // read ram config
-    // OPTIMISE : end condition of loop !=4 will generate less code than <4 
+    // OPTIMISE : end condition of loop !=4 will generate less code than <4
     // OPTIMISE : was cfg_table[i] = ds_readbyte(DS_CMD_RAM >> 1 | (i+2));
     //            using a second variable instead of DS_CMD_RAM>>1 | (i+2) generates less code
     j = DS_CMD_RAM >> 1 | 2;
@@ -73,7 +73,7 @@ uint8_t readbyte()
 	nop
 	nop
 	mov	c,_DS_IO
-	rrc	a	
+	rrc	a
 	setb	_DS_SCLK
 	nop
 	nop
@@ -146,38 +146,6 @@ void ds_reset_clock() {
     ds_writebyte(DS_ADDR_DAY,   0x01);
 }
 */
-
-void ds_hours_12_24_toggle() {
-
-    uint8_t hours,b;
-    if (H12_12) { // 12h->24h
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR12); // hours in 12h format (1-11am 12pm 1-11pm 12am)
-        if (hours == 12) {
-            if (!H12_PM) {
-                hours = 0;
-            }
-        } else {
-            if (H12_PM) {
-                hours += 12;			 // to 24h format
-            }
-        }
-        b = ds_int2bcd(hours);			 // clear hour_12_24 bit
-    }
-    else { // 24h->12h
-        hours = ds_split2int(rtc_table[DS_ADDR_HOUR] & DS_MASK_HOUR24); // hours in 24h format (0-23, 0-11=>am , 12-23=>pm)
-        b = DS_MASK_1224_MODE;
-        if (hours >= 12) { 	// pm
-            hours -= 12;
-            b |= DS_MASK_PM;
-        }
-        if (hours == 0) {  		//12am
-            hours = 12;
-        }
-        b |= ds_int2bcd(hours);
-    }
-
-    ds_writebyte(DS_ADDR_HOUR, b);
-}
 
 // increment hours
 void ds_hours_incr() {
@@ -272,7 +240,7 @@ void ds_sec_zero() {
     rtc_table[DS_ADDR_SECONDS] = 0;
     ds_writebyte(DS_ADDR_SECONDS, 0);
 }
-    
+
 uint8_t ds_split2int(uint8_t tens_ones) {
     return (tens_ones >> 4) * 10 + (tens_ones & 0x0F);
 }
